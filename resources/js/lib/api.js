@@ -96,6 +96,15 @@ let memoryId = null
  * localStorage. Não usa crypto.randomUUID porque ele só existe em contexto
  * seguro, e no ensaio pela rede local o celular abre em http://.
  */
+/**
+ * Troca o id deste aparelho. Acontece quando o cadastro encontra a mesma
+ * pessoa já cadastrada em outro aparelho: este passa a ser ela.
+ */
+export function setRespondentId(id) {
+    memoryId = id
+    respondentStore.set(id)
+}
+
 export function respondentId() {
     let id = respondentStore.get() ?? memoryId
 

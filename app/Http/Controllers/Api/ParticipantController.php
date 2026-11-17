@@ -7,10 +7,13 @@ use App\Models\Answer;
 use App\Models\Option;
 use App\Models\PollState;
 use App\Models\Question;
+use App\Models\Respondent;
 use App\Services\PollService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class ParticipantController extends Controller
 {
@@ -47,7 +50,92 @@ class ParticipantController extends Controller
                 fn (Question $q) => $q->revealed_at !== null && $state->screen === 'results',
             ),
             'mine' => (object) $mine->all(),
+            // o próprio cadastro (com o contato) só volta para o aparelho dono dele
+            'me' => $respondent ? Respondent::where('token', $respondent)->first()?->toProfile() : null,
         ]);
+    }
+
+    /**
+     * Cadastro (ou correção do cadastro) deste aparelho: nome, e-mail ou
+     * WhatsApp, e hotel.
+     *
+     * Se o contato já é de outra pessoa cadastrada, é a mesma pessoa num
+     * aparelho novo (trocou de celular, limpou o navegador): o aparelho adota
+     * aquele cadastro e as respostas dele, em vez de duplicar a pessoa. Isso
+     * só vale para quem ainda não tem cadastro; um cadastro existente que tenta
+     * tomar o contato de outro recebe erro.
+     */
+    public function register(Request $request): JsonResponse
+    {
+        $token = $this->respondent($request);
+
+        if (! $token) {
+            return response()->json(['message' => 'Aparelho não identificado. Recarregue a página.'], 400);
+        }
+
+        $request->merge([
+            'email' => $request->filled('email') ? mb_strtolower(trim((string) $request->input('email'))) : null,
+            'phone' => Respondent::normalizePhone($request->input('phone')),
+            'name' => trim((string) $request->input('name')),
+            'hotel' => trim((string) $request->input('hotel')),
+        ]);
+
+        $own = Respondent::where('token', $token)->first();
+
+        // a unicidade só barra quem corrige o próprio cadastro; um cadastro novo
+        // com contato já existente adota aquele cadastro (ver abaixo)
+        $unique = fn (string $column) => $own ? [Rule::unique('respondents', $column)->ignore($own->id)] : [];
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+            'email' => ['required_without:phone', 'nullable', 'email:rfc', 'max:120', ...$unique('email')],
+            'phone' => ['required_without:email', 'nullable', 'digits_between:10,11', ...$unique('phone')],
+            'hotel' => ['required', 'string', 'max:120'],
+        ], [
+            'name.required' => 'Informe seu nome.',
+            'email.required_without' => 'Informe um e-mail ou um WhatsApp.',
+            'phone.required_without' => 'Informe um e-mail ou um WhatsApp.',
+            'email.email' => 'Informe um e-mail válido.',
+            'phone.digits_between' => 'Informe o WhatsApp com DDD.',
+            'email.unique' => 'Este e-mail já está cadastrado em outro aparelho.',
+            'phone.unique' => 'Este WhatsApp já está cadastrado em outro aparelho.',
+            'hotel.required' => 'Informe o hotel.',
+        ]);
+
+        // só o contato escolhido fica: trocar de e-mail para WhatsApp apaga o e-mail
+        $email = $data['email'] ?? null;
+        $profile = [
+            'name' => $data['name'],
+            'email' => $email,
+            'phone' => $email ? null : ($data['phone'] ?? null),
+            'hotel' => $data['hotel'],
+        ];
+
+        $respondent = DB::transaction(function () use ($own, $token, $profile) {
+            if ($own) {
+                $own->update($profile);
+
+                return $own;
+            }
+
+            $existing = Respondent::query()
+                ->where($profile['email'] ? 'email' : 'phone', $profile['email'] ?? $profile['phone'])
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                $existing->update($profile);
+
+                return $existing;
+            }
+
+            return Respondent::create(['token' => $token, ...$profile]);
+        });
+
+        return response()->json([
+            'token' => $respondent->token,
+            'me' => $respondent->toProfile(),
+        ], $own ? 200 : 201);
     }
 
     /**
@@ -63,6 +151,10 @@ class ParticipantController extends Controller
 
         if (! $respondent) {
             return response()->json(['message' => 'Aparelho não identificado. Recarregue a página.'], 400);
+        }
+
+        if (! Respondent::where('token', $respondent)->exists()) {
+            return response()->json(['message' => 'Faça seu cadastro para responder.'], 403);
         }
 
         $data = $request->validate([

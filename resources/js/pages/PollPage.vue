@@ -5,10 +5,12 @@ import { usePolling } from '../composables/usePolling'
 import RichText from '../components/RichText.vue'
 import ResultBars from '../components/ResultBars.vue'
 import DevelopedBy from '../components/DevelopedBy.vue'
+import RegisterForm from '../components/RegisterForm.vue'
 
 /**
- * O celular, sem cadastro. Espelha o telão, uma pergunta por vez, e quem
- * escolhe qual é o facilitador no painel:
+ * O celular. Primeiro o cadastro (nome, e-mail ou WhatsApp, hotel); depois
+ * espelha o telão, uma pergunta por vez, e quem escolhe qual é o facilitador
+ * no painel:
  *   invite   — aguardando a primeira pergunta
  *   question — a pergunta N para responder
  *   results  — o resultado da pergunta N, com a resposta da pessoa marcada
@@ -32,6 +34,22 @@ watch(data, (d) => {
     for (const key of Object.keys(mine)) delete mine[key]
     Object.assign(mine, d.mine ?? {})
 })
+
+// --- cadastro ---------------------------------------------------------------
+// Logo depois de salvar, um poll que saiu antes ainda chega sem `me`: segura o
+// cadastro recém-salvo por uns segundos para o formulário não voltar à tela.
+const saved = ref(null)
+let savedAt = 0
+const editing = ref(false)
+const me = computed(() => data.value?.me ?? (Date.now() - savedAt < 5000 ? saved.value : null))
+const firstName = computed(() => me.value?.name?.split(/\s+/)[0] ?? '')
+
+function onSaved(profile) {
+    saved.value = profile
+    savedAt = Date.now()
+    editing.value = false
+    refresh()
+}
 
 const current = computed(() => data.value?.questions?.[0] ?? null)
 const screen = computed(() => {
@@ -79,6 +97,13 @@ async function choose(question, option) {
                     {{ data?.event_name ?? 'Commercial Strategy Conference' }}
                 </p>
                 <h1 class="mt-1 text-2xl font-bold leading-tight">{{ data?.title ?? 'Enquete ao vivo' }}</h1>
+                <p v-if="me && !editing" class="mt-2 text-sm text-white/80">
+                    Olá, <strong class="font-semibold text-white">{{ firstName }}</strong>
+                    <span class="text-white/40"> · </span>
+                    <button type="button" class="font-semibold text-accent-500 underline-offset-2 hover:underline" @click="editing = true">
+                        editar dados
+                    </button>
+                </p>
             </div>
         </header>
         <div class="h-1 bg-accent-500" />
@@ -86,8 +111,17 @@ async function choose(question, option) {
         <main class="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 px-4 pt-5">
             <div v-if="!data" class="py-16 text-center text-ink/60">Carregando…</div>
 
+            <RegisterForm
+                v-if="data && (!me || editing)"
+                :key="editing ? 'edit' : 'new'"
+                :me="editing ? me : null"
+                @saved="onSaved"
+                @cancel="editing = false"
+            />
+
+            <template v-else-if="data">
             <div
-                v-if="data && !accepting && screen === 'question'"
+                v-if="!accepting && screen === 'question'"
                 class="rounded-xl border border-brand-300 bg-white px-4 py-3 text-sm font-semibold text-brand-800"
             >
                 Respostas encerradas. O resultado aparece no telão e aqui em instantes.
@@ -169,6 +203,7 @@ async function choose(question, option) {
                     </p>
                 </section>
             </Transition>
+            </template>
 
             <p v-if="data && !online" class="text-center text-sm text-ink/60">Reconectando…</p>
 

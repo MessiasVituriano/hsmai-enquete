@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Answer;
 use App\Models\PollState;
 use App\Models\Question;
+use App\Models\Respondent;
 use Illuminate\Support\Collection;
 
 /**
@@ -117,6 +118,8 @@ class PollService
             'screen' => in_array($state->screen, PollState::SCREENS, true) ? $state->screen : 'invite',
             'screen_question_id' => $state->focusId(),
             'respondents' => $this->respondents(),
+            // cadastrados, tenham respondido ou não: quantos estão na sala
+            'registered' => Respondent::count(),
         ];
     }
 }

@@ -26,9 +26,11 @@ const screen = computed(() => {
     if (d.screen === 'question' && current.value) return 'question'
     return 'invite'
 })
+// no convite conta quem já entrou (cadastrou), não só quem respondeu: é o
+// número que sobe enquanto a sala escaneia o QR
 const respondentsLabel = computed(() => {
-    const n = data.value?.respondents ?? 0
-    return `${n} ${n === 1 ? 'pessoa respondeu' : 'pessoas responderam'}`
+    const n = data.value?.registered ?? 0
+    return `${n} ${n === 1 ? 'pessoa conectada' : 'pessoas conectadas'}`
 })
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 const LETTERS = 'ABCDEFGH'

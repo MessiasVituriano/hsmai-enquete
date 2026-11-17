@@ -26,6 +26,7 @@ const { data, online, start, stop, refresh } = usePolling(async () => {
     } catch (e) {
         if (e.status === 401) {
             stop()
+            people.stop()
             authed.value = false
             authError.value = 'Token inválido.'
         }
@@ -40,6 +41,9 @@ async function login(token) {
         data.value = await api.get('/admin/overview')
         authed.value = true
         start()
+        // start() só agenda; a primeira busca da lista sai agora
+        people.refresh()
+        people.start()
     } catch (e) {
         authError.value = e.status === 401 ? 'Token inválido.' : 'Servidor fora do ar.'
     }
@@ -67,6 +71,37 @@ async function act(path, body = {}, confirmText = null) {
         refresh()
     } finally {
         busy.value = false
+    }
+}
+
+// --- cadastros: lista a cada 5s (fora do poll de 1s) e planilha -------------
+const people = usePolling(() => api.get('/admin/respondents'), { interval: 5000, immediate: false })
+const respondents = computed(() => people.data.value?.respondents ?? [])
+const peopleFilter = ref('')
+const filteredPeople = computed(() => {
+    const term = peopleFilter.value.trim().toLowerCase()
+    if (!term) return respondents.value
+    return respondents.value.filter((r) =>
+        [r.name, r.email, r.phone, r.hotel].some((v) => v && String(v).toLowerCase().includes(term)))
+})
+const downloading = ref(false)
+
+async function downloadCsv() {
+    downloading.value = true
+    actionError.value = ''
+    try {
+        // fetch com o token no header (não na URL, que ficaria no log do servidor)
+        const res = await fetch('/api/admin/respondents.csv', { headers: { 'X-Master-Token': masterToken.get() ?? '' } })
+        if (!res.ok) throw new Error(`Erro ${res.status}`)
+        const blob = await res.blob()
+        const name = res.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1] ?? 'enquete-participantes.csv'
+        const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: name })
+        a.click()
+        URL.revokeObjectURL(a.href)
+    } catch (e) {
+        actionError.value = 'Não foi possível baixar a planilha: ' + e.message
+    } finally {
+        downloading.value = false
     }
 }
 
@@ -152,8 +187,16 @@ const phoneLabel = computed(() => {
                 <!-- estado geral -->
                 <section class="grid gap-4 md:grid-cols-[1fr_2fr]">
                     <div class="rounded-xl border border-brand-200 bg-white p-5">
-                        <p class="text-sm font-semibold text-ink/60">Pessoas que responderam</p>
-                        <p class="mt-1 text-5xl font-bold tabular-nums text-brand-800">{{ data.respondents }}</p>
+                        <div class="flex gap-6">
+                            <div>
+                                <p class="text-sm font-semibold text-ink/60">Cadastrados</p>
+                                <p class="mt-1 text-5xl font-bold tabular-nums text-brand-800">{{ data.registered }}</p>
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold text-ink/60">Já responderam</p>
+                                <p class="mt-1 text-5xl font-bold tabular-nums text-brand-500">{{ data.respondents }}</p>
+                            </div>
+                        </div>
                         <div class="mt-4 flex flex-wrap items-center gap-3">
                             <span
                                 class="whitespace-nowrap rounded-full px-3 py-1 text-sm font-semibold"
@@ -255,16 +298,70 @@ const phoneLabel = computed(() => {
                     </article>
                 </section>
 
+                <!-- participantes -->
+                <section class="rounded-xl border border-brand-200 bg-white p-5">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="mr-auto">
+                            <h2 class="text-lg font-bold text-brand-800">Participantes</h2>
+                            <p class="text-sm text-ink/60">{{ respondents.length }} cadastrados · atualiza a cada 5 segundos</p>
+                        </div>
+                        <input
+                            v-model="peopleFilter"
+                            type="search"
+                            placeholder="Buscar nome, contato ou hotel"
+                            class="w-full rounded-lg border border-brand-300 px-3 py-2 text-sm outline-none focus:border-brand-800 sm:w-64"
+                        >
+                        <button
+                            :disabled="downloading || !respondents.length"
+                            class="rounded-lg bg-brand-800 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-900 disabled:opacity-40"
+                            @click="downloadCsv"
+                        >
+                            {{ downloading ? 'Baixando…' : '⬇ Baixar planilha (CSV)' }}
+                        </button>
+                    </div>
+
+                    <div class="mt-4 max-h-[28rem] overflow-auto rounded-lg border border-brand-100">
+                        <table class="w-full min-w-[720px] text-left text-sm">
+                            <thead class="sticky top-0 bg-brand-50 text-xs uppercase tracking-wider text-ink/60">
+                                <tr>
+                                    <th class="px-3 py-2 font-semibold">Nome</th>
+                                    <th class="px-3 py-2 font-semibold">Contato</th>
+                                    <th class="px-3 py-2 font-semibold">Hotel</th>
+                                    <th v-for="q in questions" :key="q.id" class="px-3 py-2 font-semibold">P{{ q.number }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="r in filteredPeople" :key="r.id" class="border-t border-brand-100">
+                                    <td class="px-3 py-2 font-semibold text-ink">{{ r.name }}</td>
+                                    <td class="px-3 py-2 text-ink/80">
+                                        <span v-if="r.email">{{ r.email }}</span>
+                                        <span v-else>
+                                            <span class="mr-1 rounded bg-accent-500/20 px-1 text-[10px] font-bold text-accent-600">WA</span>{{ r.phone }}
+                                        </span>
+                                    </td>
+                                    <td class="px-3 py-2 text-ink/80">{{ r.hotel }}</td>
+                                    <td v-for="(a, i) in r.answers" :key="i" class="px-3 py-2 text-ink/80">{{ a ?? '—' }}</td>
+                                </tr>
+                                <tr v-if="!filteredPeople.length">
+                                    <td :colspan="3 + questions.length" class="px-3 py-6 text-center text-ink/50">
+                                        {{ respondents.length ? 'Ninguém encontrado.' : 'Ninguém cadastrado ainda.' }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
                 <!-- zona de risco -->
                 <section class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-white p-5">
                     <div>
                         <p class="font-semibold text-red-800">Zerar enquete</p>
-                        <p class="text-sm text-ink/60">Apaga todas as respostas, recolhe os resultados e volta o telão ao convite. Use no ensaio, não durante o painel.</p>
+                        <p class="text-sm text-ink/60">Apaga todos os cadastros e respostas e volta o telão ao convite. Baixe a planilha antes. Use no ensaio, não durante o painel.</p>
                     </div>
                     <button
                         :disabled="busy"
                         class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-50"
-                        @click="act('/admin/reset', {}, `Apagar as respostas de ${data.respondents} pessoa(s)? Não dá para desfazer.`)"
+                        @click="act('/admin/reset', {}, `Apagar ${data.registered} cadastro(s) e todas as respostas? Não dá para desfazer.`).then(() => people.refresh())"
                     >
                         Zerar tudo
                     </button>

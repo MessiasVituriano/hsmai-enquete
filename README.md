@@ -1,7 +1,8 @@
 # Enquete ao vivo — Commercial Strategy Conference
 
 Enquete de auditório para o painel: a plateia escaneia o QR code do telão,
-responde 4 perguntas no celular em ~30 segundos, sem cadastro, e o facilitador
+faz um cadastro rápido (nome, e-mail ou WhatsApp, hotel), responde 4
+perguntas no celular, e o facilitador
 leva o resultado de cada pergunta ao telão logo depois dela.
 
 Feita a partir da base do projeto ROC (mesma stack, mesmo deploy), sem
@@ -54,7 +55,8 @@ mostra os resultados de todas as perguntas ao vivo desde o primeiro voto (é a
 agora** uma pergunta cujo resultado já apareceu esconde o resultado de novo.
 
 **Encerrar respostas** trava os botões nos celulares, e o telão avisa que as respostas foram encerradas.
-**Zerar tudo** apaga as respostas e volta ao convite (para depois do ensaio).
+**Zerar tudo** apaga cadastros e respostas e volta ao convite (para depois do
+ensaio; baixe a planilha antes).
 
 ## Regras
 
@@ -64,15 +66,35 @@ agora** uma pergunta cujo resultado já apareceu esconde o resultado de novo.
   qualquer pergunta, não só para a da tela: se o painel troca no segundo em
   que alguém tocou, o voto não se perde.
 
-- **Anônimo, um voto por aparelho.** O celular gera um UUID e guarda no
-  `localStorage`; o servidor tem índice único `(respondent, question_id)`.
-  Tocar em outra alternativa **troca** a resposta na mesma linha — vale até o
-  facilitador encerrar. Quem limpa os dados do navegador vota de novo: é o
-  preço de não ter cadastro, e numa enquete de sala isso é aceitável.
+- **Cadastro antes de responder.** Nome, **e-mail ou WhatsApp** (a pessoa
+  escolhe; um dos dois basta) e hotel. Sem cadastro o servidor recusa a
+  resposta (403). O ideal é a sala se cadastrar durante o convite, enquanto o
+  QR ainda está no telão. Depois, "editar dados" no topo do celular corrige
+  tudo.
+- **Uma pessoa, um cadastro.** E-mail e WhatsApp são únicos. O WhatsApp é
+  guardado só com os dígitos, sem o 55, então `+55 (11) 98888-7777` e
+  `11988887777` são a mesma pessoa. Se alguém se cadastra num aparelho novo
+  com um contato que já existe (trocou de celular, limpou o navegador), o
+  aparelho **adota** aquele cadastro e as respostas dele em vez de duplicar a
+  pessoa. Um cadastro existente que tenta usar o contato de outra pessoa
+  recebe erro.
+- **Um voto por pessoa e pergunta.** O celular guarda um UUID no
+  `localStorage`, o mesmo do cadastro, e o servidor tem índice único
+  `(respondent, question_id)`. Tocar em outra alternativa **troca** a resposta
+  na mesma linha. Vale até o facilitador encerrar.
 - **Percentuais somam 100.** Arredondamento pelo maior resto, para o telão
   não mostrar "33% · 66%".
 - **Ordem fixa das alternativas** nos resultados: a sala reconhece a
   pergunta pela ordem em que leu as opções.
+
+## Participantes e planilha
+
+O painel tem a seção **Participantes**: a lista dos cadastros (nome,
+contato, hotel e o que cada um respondeu), com busca, atualizada a cada 5
+segundos. **⬇ Baixar planilha (CSV)** gera o arquivo com tudo isso e a data do
+cadastro, pronto para o Excel. Baixe a planilha antes de **Zerar tudo**.
+
+O contato só aparece no painel e no celular do próprio dono, nunca no telão.
 
 ## Cores
 
@@ -142,12 +164,15 @@ rodar com a enquete aberta e já recebendo respostas, a não ser com `--force`).
 | Método | Rota | Uso |
 |---|---|---|
 | `GET` | `/api/poll` | poll do celular (2s): a pergunta selecionada, o que este aparelho marcou, o resultado na fase de resultado |
-| `POST` | `/api/answer` | `{question_id, option_id}` — marca ou troca |
+| `POST` | `/api/register` | `{name, email \| phone, hotel}`: cadastra ou corrige; devolve o `token` do aparelho |
+| `POST` | `/api/answer` | `{question_id, option_id}`: marca ou troca (exige cadastro) |
 | `GET` | `/api/display` | poll do telão (1s) |
 | `GET` | `/api/admin/overview` | poll do painel (1s), com todos os resultados |
 | `POST` | `/api/admin/screen` | `{screen: invite\|question\|results, question_id?}` |
 | `POST` | `/api/admin/accepting` | `{accepting: bool}` |
-| `POST` | `/api/admin/reset` | apaga respostas e liberações |
+| `POST` | `/api/admin/reset` | apaga cadastros, respostas e liberações |
+| `GET` | `/api/admin/respondents` | os cadastros com as respostas (o painel busca a cada 5s) |
+| `GET` | `/api/admin/respondents.csv` | a planilha: `;` e BOM UTF-8, abre direto no Excel |
 
 O celular se identifica pelo header `X-Respondent` (UUID); o painel, por
 `X-Master-Token`.

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Answer;
 use App\Models\PollState;
 use App\Models\Question;
+use App\Models\Respondent;
 use Database\Seeders\PollSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -23,9 +24,22 @@ class PollTest extends TestCase
         $this->seed(PollSeeder::class);
     }
 
-    protected function phone(): array
+    protected int $people = 0;
+
+    /** Um celular já cadastrado (é o caminho normal: ninguém responde sem cadastro). */
+    protected function phone(array $profile = []): array
     {
-        return ['X-Respondent' => (string) Str::uuid()];
+        $headers = ['X-Respondent' => (string) Str::uuid()];
+        $n = ++$this->people;
+
+        $this->postJson('/api/register', [
+            'name' => "Pessoa {$n}",
+            'email' => "pessoa{$n}@hotel.com",
+            'hotel' => 'Hotel Aurora',
+            ...$profile,
+        ], $headers)->assertCreated();
+
+        return $headers;
     }
 
     protected function question(int $position): Question
@@ -91,6 +105,12 @@ class PollTest extends TestCase
             'question_id' => $this->question(1)->id,
             'option_id' => $this->question(1)->options[0]->id,
         ], ['X-Respondent' => 'nao-e-uuid'])->assertStatus(400);
+
+        // aparelho sem cadastro não responde
+        $this->postJson('/api/answer', [
+            'question_id' => $this->question(1)->id,
+            'option_id' => $this->question(1)->options[0]->id,
+        ], ['X-Respondent' => (string) Str::uuid()])->assertStatus(403);
 
         $this->assertSame(0, Answer::count());
     }
@@ -195,10 +215,83 @@ class PollTest extends TestCase
         $this->postJson('/api/admin/reset', [], $this->master)->assertOk();
 
         $this->assertSame(0, Answer::count());
+        $this->assertSame(0, Respondent::count());
         $this->assertSame(0, Question::whereNotNull('revealed_at')->count());
         $state = PollState::current();
         $this->assertTrue($state->accepting);
         $this->assertSame('invite', $state->screen);
+    }
+
+    public function test_cadastro_com_email_ou_whatsapp_e_hotel(): void
+    {
+        $device = ['X-Respondent' => (string) Str::uuid()];
+
+        $this->postJson('/api/register', ['name' => 'Ana', 'hotel' => 'Hotel Sol'], $device)
+            ->assertStatus(422)->assertJsonValidationErrors(['email', 'phone']);
+        $this->postJson('/api/register', ['name' => 'Ana', 'phone' => '1199', 'hotel' => 'Hotel Sol'], $device)
+            ->assertStatus(422)->assertJsonValidationErrors('phone');
+        $this->postJson('/api/register', ['name' => 'Ana', 'email' => 'ana@x.com'], $device)
+            ->assertStatus(422)->assertJsonValidationErrors('hotel');
+
+        $this->postJson('/api/register', ['name' => ' Ana ', 'phone' => '+55 (11) 98888-7777', 'hotel' => 'Hotel Sol'], $device)
+            ->assertCreated()
+            ->assertJsonPath('me.phone', '11988887777')
+            ->assertJsonPath('me.name', 'Ana');
+
+        $this->getJson('/api/poll', $device)->assertJsonPath('me.hotel', 'Hotel Sol');
+        $this->getJson('/api/poll', ['X-Respondent' => (string) Str::uuid()])->assertJsonPath('me', null);
+
+        // corrigir o próprio cadastro troca o contato; não cria outra pessoa
+        $this->postJson('/api/register', ['name' => 'Ana Souza', 'email' => 'ANA@x.com', 'hotel' => 'Hotel Sol'], $device)
+            ->assertOk()
+            ->assertJsonPath('me.email', 'ana@x.com')
+            ->assertJsonPath('me.phone', null);
+        $this->assertSame(1, Respondent::count());
+    }
+
+    public function test_mesmo_contato_em_outro_aparelho_adota_o_cadastro_e_as_respostas(): void
+    {
+        $first = $this->phone(['email' => 'joao@hotel.com']);
+        $this->vote($first, 1, 0)->assertOk();
+
+        $newDevice = ['X-Respondent' => (string) Str::uuid()];
+        $token = $this->postJson('/api/register', ['name' => 'João', 'email' => 'joao@hotel.com', 'hotel' => 'Hotel Mar'], $newDevice)
+            ->assertCreated()->json('token');
+
+        $this->assertSame($first['X-Respondent'], $token);
+        $this->assertSame(1, Respondent::count());
+        $this->assertSame('Hotel Mar', Respondent::first()->hotel);
+        $this->assertCount(1, (array) $this->getJson('/api/poll', ['X-Respondent' => $token])->json('mine'));
+    }
+
+    public function test_quem_ja_tem_cadastro_nao_toma_o_contato_de_outro(): void
+    {
+        $this->phone(['email' => 'maria@hotel.com']);
+        $other = $this->phone(['email' => 'pedro@hotel.com']);
+
+        $this->postJson('/api/register', ['name' => 'Pedro', 'email' => 'maria@hotel.com', 'hotel' => 'X'], $other)
+            ->assertStatus(422)->assertJsonValidationErrors('email');
+    }
+
+    public function test_painel_lista_e_exporta_os_cadastros_com_as_respostas(): void
+    {
+        $ana = $this->phone(['name' => 'Ana', 'email' => null, 'phone' => '11988887777', 'hotel' => 'Hotel Sol']);
+        $this->vote($ana, 4, 2);
+
+        $this->getJson('/api/admin/overview', $this->master)->assertJsonPath('registered', 1);
+
+        $list = $this->getJson('/api/admin/respondents', $this->master)->assertOk();
+        $list->assertJsonPath('respondents.0.name', 'Ana')
+            ->assertJsonPath('respondents.0.phone', '(11) 98888-7777')
+            ->assertJsonPath('respondents.0.answers', [null, null, null, 'Volume de pernoites']);
+
+        $csv = $this->get('/api/admin/respondents.csv', $this->master)->assertOk()->streamedContent();
+        $this->assertStringStartsWith("\u{FEFF}Nome;E-mail;WhatsApp;Hotel;", $csv);
+        $this->assertStringContainsString('Ana;;"(11) 98888-7777";"Hotel Sol";', $csv);
+        $this->assertStringContainsString('"Volume de pernoites"', $csv);
+
+        $this->get('/api/admin/respondents.csv')->assertUnauthorized();
+        $this->getJson('/api/admin/respondents')->assertUnauthorized();
     }
 
     public function test_painel_exige_token(): void
