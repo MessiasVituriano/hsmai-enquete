@@ -90,7 +90,7 @@ async function choose(question, option) {
                 v-if="data && !accepting && screen === 'question'"
                 class="rounded-xl border border-brand-300 bg-white px-4 py-3 text-sm font-semibold text-brand-800"
             >
-                Respostas encerradas. Os resultados aparecem no telão no final do painel.
+                Respostas encerradas. O resultado aparece no telão e aqui em instantes.
             </div>
 
             <Transition name="fade" mode="out-in">
@@ -145,7 +145,7 @@ async function choose(question, option) {
                     </div>
 
                     <p v-if="mine[current.id]" class="mt-4 text-center text-sm font-semibold text-accent-600">
-                        ✓ Resposta registrada. A próxima pergunta aparece aqui sozinha.
+                        ✓ Resposta registrada. O resultado aparece aqui logo depois.
                     </p>
                     <p v-if="error" class="mt-4 text-center text-sm font-semibold text-red-700">{{ error }}</p>
                 </section>

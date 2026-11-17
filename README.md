@@ -2,7 +2,7 @@
 
 Enquete de auditório para o painel: a plateia escaneia o QR code do telão,
 responde 4 perguntas no celular em ~30 segundos, sem cadastro, e o facilitador
-leva os resultados ao telão no final do painel.
+leva o resultado de cada pergunta ao telão logo depois dela.
 
 Feita a partir da base do projeto ROC (mesma stack, mesmo deploy), sem
 missões, fases, mesas nem pontuação.
@@ -44,9 +44,11 @@ botões de cada pergunta pulam para qualquer ponto dele.
 |---|---|---|
 | **Convite + QR code** | só o QR code, a chamada e quantas pessoas já responderam | "Você está dentro!", aguardando |
 | **Pergunta N** (*Perguntar agora*) | a pergunta N com as alternativas e o número de respostas subindo, sem resultado | a pergunta N para responder |
-| **Resultado da pergunta N** (*Mostrar resultado*), no final | as barras com o percentual de cada alternativa | o resultado, com a resposta da pessoa marcada |
+| **Resultado da pergunta N** (*Mostrar resultado*) | as barras crescem do zero e os percentuais contam até o valor | o resultado, com a resposta da pessoa marcada |
 
-A ordem do **Próxima ›** é convite → pergunta 1…4 → resultado 1…4. O painel
+A ordem do **Próxima ›** é convite → pergunta 1 → resultado 1 → pergunta 2 →
+resultado 2 → … Cada pergunta fecha com o próprio resultado antes de a próxima
+abrir. O painel
 mostra os resultados de todas as perguntas ao vivo desde o primeiro voto (é a
 única tela que vê isso, e ela não vai ao projetor). Voltar a **Perguntar
 agora** uma pergunta cujo resultado já apareceu esconde o resultado de novo.

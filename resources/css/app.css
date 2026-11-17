@@ -32,6 +32,11 @@ body {
     transition: width 700ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* a revelação: mais lenta, para a sala acompanhar a barra subir */
+.bar-fill.bar-enter {
+    transition-duration: 1100ms;
+}
+
 @keyframes pop {
     0% { transform: scale(0.94); }
     60% { transform: scale(1.03); }

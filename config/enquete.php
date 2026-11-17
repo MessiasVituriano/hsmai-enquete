@@ -13,9 +13,9 @@ return [
 
     'event_name' => env('EVENT_NAME', 'Commercial Strategy Conference'),
     'title' => 'Enquete ao vivo: onde estamos?',
-    'subtitle' => 'Responda pelo **QR code**: vamos usar os resultados no final do painel',
+    'subtitle' => 'Responda pelo **QR code**: vamos usar os resultados ao longo do painel',
     'call_to_action' => 'Responda em **30 segundos**',
-    'call_to_action_note' => 'Os resultados aparecem no final',
+    'call_to_action_note' => 'Resultados voltam ao longo do painel',
 
     // Logos opcionais: coloque os arquivos oficiais em public/brand/. Sem o
     // arquivo, o espaço some e o telão segue sem ele.

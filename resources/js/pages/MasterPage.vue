@@ -75,14 +75,17 @@ const isOn = (screen, id = null) =>
     data.value?.screen === screen && (screen === 'invite' || data.value?.screen_question_id === id)
 
 /*
- * O roteiro em ordem: convite → as perguntas, uma a uma → os resultados, um a
- * um, no final. "Próxima" e "Anterior" andam por esta lista; os botões de
+ * O roteiro em ordem: convite → pergunta 1 → resultado 1 → pergunta 2 →
+ * resultado 2 → … Cada pergunta fecha com o próprio resultado antes de a
+ * próxima abrir. "Próxima" e "Anterior" andam por esta lista; os botões de
  * cada pergunta saltam para qualquer ponto dela.
  */
 const steps = computed(() => [
     { screen: 'invite', label: 'Convite + QR code' },
-    ...questions.value.map((q) => ({ screen: 'question', question_id: q.id, label: `Pergunta ${q.number} (respondendo)` })),
-    ...questions.value.map((q) => ({ screen: 'results', question_id: q.id, label: `Resultado da pergunta ${q.number}` })),
+    ...questions.value.flatMap((q) => [
+        { screen: 'question', question_id: q.id, label: `Pergunta ${q.number} (respondendo)` },
+        { screen: 'results', question_id: q.id, label: `Resultado da pergunta ${q.number}` },
+    ]),
 ])
 const stepIndex = computed(() => {
     const d = data.value
@@ -201,8 +204,8 @@ const phoneLabel = computed(() => {
                             Voltar ao convite com o QR code
                         </button>
                         <p class="mt-3 text-xs text-ink/60">
-                            Selecionar uma pergunta leva ela ao telão e aos celulares, sem resultado. O resultado só aparece
-                            quando você manda, e a ideia é mostrar todos no final.
+                            A ordem é pergunta → resultado → próxima pergunta. A pergunta vai ao telão e aos celulares sem
+                            resultado; o resultado dela entra no clique seguinte.
                         </p>
                     </div>
                 </section>
