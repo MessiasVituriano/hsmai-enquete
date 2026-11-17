@@ -2,7 +2,7 @@
 
 Enquete de auditório para o painel: a plateia escaneia o QR code do telão,
 responde 4 perguntas no celular em ~30 segundos, sem cadastro, e o facilitador
-leva os resultados ao telão ao longo do painel.
+leva os resultados ao telão no final do painel.
 
 Feita a partir da base do projeto ROC (mesma stack, mesmo deploy), sem
 missões, fases, mesas nem pontuação.
@@ -51,7 +51,7 @@ mostra os resultados de todas as perguntas ao vivo desde o primeiro voto (é a
 única tela que vê isso, e ela não vai ao projetor). Voltar a **Perguntar
 agora** uma pergunta cujo resultado já apareceu esconde o resultado de novo.
 
-**Encerrar respostas** trava os botões nos celulares e tira o QR do telão.
+**Encerrar respostas** trava os botões nos celulares, e o telão avisa que as respostas foram encerradas.
 **Zerar tudo** apaga as respostas e volta ao convite (para depois do ensaio).
 
 ## Regras
