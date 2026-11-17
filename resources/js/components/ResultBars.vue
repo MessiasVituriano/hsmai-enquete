@@ -34,7 +34,7 @@ const s = computed(() => S[props.size] ?? S.md)
 </script>
 
 <script>
-export const PALETTE = ['#4b2866', '#8dc63f', '#8a6aa6', '#5f6b7a']
+export const PALETTE = ['#0b4c93', '#8cc63f', '#1b86c4', '#5f6b7a']
 </script>
 
 <template>

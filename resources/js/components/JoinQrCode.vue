@@ -14,7 +14,7 @@ onMounted(async () => {
     src.value = await QRCode.toDataURL(url, {
         width: props.size * 2,
         margin: 1,
-        color: { dark: '#2c1640', light: '#ffffff' },
+        color: { dark: '#061f3d', light: '#ffffff' },
     })
 })
 </script>

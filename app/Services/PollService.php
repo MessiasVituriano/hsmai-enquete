@@ -19,6 +19,25 @@ class PollService
         return Question::with('options')->orderBy('position')->get();
     }
 
+    /**
+     * As perguntas vigentes: as que o telão está mostrando agora.
+     *
+     * @param  Collection<int, Question>  $questions
+     * @return Collection<int, Question>
+     */
+    public function current(PollState $state, Collection $questions): Collection
+    {
+        if ($state->screen !== 'question') {
+            return $questions;
+        }
+
+        $only = $questions->where('id', $state->screen_question_id)->values();
+
+        // pergunta apagada do config com o telão ainda nela: melhor mostrar
+        // todas do que um celular vazio
+        return $only->isEmpty() ? $questions : $only;
+    }
+
     /** @return array<int, array<int, int>> question_id => [option_id => votos] */
     public function counts(): array
     {

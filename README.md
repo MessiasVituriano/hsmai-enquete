@@ -38,9 +38,9 @@ some o voto de uma alternativa que você tirar do config.
 
 | Momento | Botão no `/master` | Telão | Celulares |
 |---|---|---|---|
-| Abertura | **Convite + QR** | o slide com as 4 perguntas, o QR e quantas pessoas já responderam | respondem |
-| Ao longo do painel | **Pergunta N** (ou *Mostrar no telão* no card) | o resultado daquela pergunta, ao vivo, com um QR menor para quem chegou atrasado | o resultado dela aparece abaixo da pergunta |
-| Fecho | **Todas** | as 4 perguntas lado a lado | todos os resultados |
+| Abertura | **Convite + QR** | o slide com as 4 perguntas, o QR e quantas pessoas já responderam | as 4 perguntas |
+| Ao longo do painel | **Pergunta N** (ou *Mostrar no telão* no card) | o resultado daquela pergunta, ao vivo, com um QR menor para quem chegou atrasado | só aquela pergunta, com o resultado abaixo |
+| Fecho | **Todas** | as 4 perguntas lado a lado | as 4, com os resultados |
 | Quando quiser | **Encerrar respostas** | o convite passa a dizer "Enquete encerrada" | os botões travam |
 
 O painel mostra os resultados de **todas** as perguntas ao vivo, desde o
@@ -51,6 +51,12 @@ ensaio).
 
 ## Regras
 
+- **O celular segue o telão.** Ele mostra só as perguntas vigentes, que são as
+  que estão no telão: as 4 no convite e em "Todas", só a pergunta N quando o
+  resultado dela está projetado. A troca chega aos celulares em até 2s. O
+  servidor aceita resposta de qualquer pergunta, não só da vigente: se o
+  telão troca no segundo em que alguém tocou, o voto não se perde.
+
 - **Anônimo, um voto por aparelho.** O celular gera um UUID e guarda no
   `localStorage`; o servidor tem índice único `(respondent, question_id)`.
   Tocar em outra alternativa **troca** a resposta na mesma linha — vale até o
@@ -60,6 +66,14 @@ ensaio).
   não mostrar "33% · 66%".
 - **Ordem fixa das alternativas** nos resultados: a sala reconhece a
   pergunta pela ordem em que leu as opções.
+
+## Cores
+
+Paleta da Sistema IO, tirada do símbolo: azul `#0b4c93` / `#1b86c4` e verde
+`#8cc63f` / `#3f9a2a`. Os tokens ficam no `@theme` de
+[`resources/css/app.css`](resources/css/app.css) (`brand-*` é o azul,
+`accent-*` o verde); as barras de resultado usam a lista `PALETTE` de
+`ResultBars.vue`.
 
 ## Logos
 
@@ -120,7 +134,7 @@ rodar com a enquete aberta e já recebendo respostas, a não ser com `--force`).
 
 | Método | Rota | Uso |
 |---|---|---|
-| `GET` | `/api/poll` | poll do celular (3s): perguntas, o que este aparelho marcou, resultados liberados |
+| `GET` | `/api/poll` | poll do celular (2s): perguntas vigentes, o que este aparelho marcou, resultados liberados |
 | `POST` | `/api/answer` | `{question_id, option_id}` — marca ou troca |
 | `GET` | `/api/display` | poll do telão (1s) |
 | `GET` | `/api/admin/overview` | poll do painel (1s), com todos os resultados |

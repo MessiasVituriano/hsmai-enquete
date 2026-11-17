@@ -16,11 +16,18 @@ class ParticipantController extends Controller
 {
     public function __construct(private PollService $poll) {}
 
-    /** Poll do celular: as perguntas, o que este aparelho já marcou e os resultados liberados. */
+    /**
+     * Poll do celular: as perguntas vigentes, o que este aparelho já marcou e
+     * os resultados liberados.
+     *
+     * Vigente é o que está no telão: no convite e em "todas", as quatro; com o
+     * resultado de uma pergunta no telão, só ela. O celular acompanha a
+     * conversa do palco em vez de mostrar a lista inteira o tempo todo.
+     */
     public function show(Request $request): JsonResponse
     {
         $state = PollState::current();
-        $questions = $this->poll->questions();
+        $questions = $this->poll->current($state, $this->poll->questions());
         $respondent = $this->respondent($request);
 
         $mine = $respondent
@@ -40,7 +47,13 @@ class ParticipantController extends Controller
         ]);
     }
 
-    /** Marca (ou troca) a alternativa de uma pergunta. Mudar de ideia vale até a enquete fechar. */
+    /**
+     * Marca (ou troca) a alternativa de uma pergunta. Mudar de ideia vale até a
+     * enquete fechar.
+     *
+     * Aceita qualquer pergunta, não só a vigente: se o facilitador troca o
+     * telão no segundo em que alguém tocou, o voto não se perde.
+     */
     public function answer(Request $request): JsonResponse
     {
         $respondent = $this->respondent($request);

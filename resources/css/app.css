@@ -3,19 +3,20 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
 
-    /* paleta do slide: roxo da conferência, verde de destaque, fundo lavanda */
-    --color-brand-950: #2c1640;
-    --color-brand-900: #3d1f57;
-    --color-brand-800: #4b2866;
-    --color-brand-700: #5a3279;
-    --color-brand-500: #8a6aa6;
-    --color-brand-300: #c6b6d6;
-    --color-brand-200: #ddd3e8;
-    --color-brand-100: #ece7f3;
-    --color-brand-50: #f6f3fa;
-    --color-accent-500: #8dc63f;
-    --color-accent-600: #74a82e;
-    --color-ink: #3a3346;
+    /* paleta da Sistema IO, tirada do símbolo: o azul da haste e do anel e o
+     * verde do ponto. "brand" é o azul; "accent" é o verde. */
+    --color-brand-950: #061f3d;
+    --color-brand-900: #083a70;
+    --color-brand-800: #0b4c93;
+    --color-brand-700: #1a64ad;
+    --color-brand-500: #1b86c4;
+    --color-brand-300: #a8cbe6;
+    --color-brand-200: #d2e3f2;
+    --color-brand-100: #eaf2f9;
+    --color-brand-50: #f5f9fd;
+    --color-accent-500: #8cc63f;
+    --color-accent-600: #3f9a2a;
+    --color-ink: #27323f;
 }
 
 html,

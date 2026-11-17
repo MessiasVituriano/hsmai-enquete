@@ -7,10 +7,12 @@ import ResultBars from '../components/ResultBars.vue'
 import DevelopedBy from '../components/DevelopedBy.vue'
 
 /**
- * O celular: as quatro perguntas numa tela só, sem cadastro. Cada toque grava
- * na hora; trocar de ideia vale até o facilitador encerrar a enquete.
+ * O celular, sem cadastro. Mostra só as perguntas vigentes — as que estão no
+ * telão (o servidor já manda filtrado). Cada toque grava na hora; trocar de
+ * ideia vale até o facilitador encerrar a enquete.
  */
-const { data, online, refresh } = usePolling(() => api.get('/poll'), { interval: 3000 })
+// 2s: quando o facilitador troca o telão, o celular acompanha quase junto
+const { data, online, refresh } = usePolling(() => api.get('/poll'), { interval: 2000 })
 
 // o que este aparelho marcou. Começa do servidor e passa a ser a fonte da
 // verdade local, para o toque responder antes do round-trip
@@ -81,6 +83,7 @@ async function choose(question, option) {
                 Enquete encerrada. Os resultados aparecem no telão ao longo do painel.
             </div>
 
+            <TransitionGroup name="fade">
             <section
                 v-for="q in questions"
                 :key="q.id"
@@ -120,6 +123,7 @@ async function choose(question, option) {
                     <ResultBars :options="q.options" :results="q.results" :mine="mine[q.id] ?? null" size="sm" />
                 </div>
             </section>
+            </TransitionGroup>
 
             <div class="flex justify-center pb-2 pt-5">
                 <DevelopedBy />

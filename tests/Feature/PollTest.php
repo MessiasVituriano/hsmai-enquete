@@ -130,6 +130,25 @@ class PollTest extends TestCase
         $this->assertSame('invite', PollState::current()->screen);
     }
 
+    public function test_celular_mostra_so_as_perguntas_vigentes_no_telao(): void
+    {
+        $numbers = fn () => array_column($this->getJson('/api/poll', $this->phone())->json('questions'), 'number');
+
+        $this->assertSame([1, 2, 3, 4], $numbers());
+
+        $this->postJson('/api/admin/screen', ['screen' => 'question', 'question_id' => $this->question(2)->id], $this->master);
+        $this->assertSame([2], $numbers());
+
+        // voto numa pergunta que acabou de sair do telão não se perde
+        $this->vote($this->phone(), 1, 0)->assertOk();
+
+        $this->postJson('/api/admin/screen', ['screen' => 'all'], $this->master);
+        $this->assertSame([1, 2, 3, 4], $numbers());
+
+        $this->postJson('/api/admin/screen', ['screen' => 'invite'], $this->master);
+        $this->assertSame([1, 2, 3, 4], $numbers());
+    }
+
     public function test_percentuais_somam_cem(): void
     {
         foreach ([0, 1, 2] as $option) {
