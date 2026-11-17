@@ -159,6 +159,31 @@ quem escaneou o QR.
 Atualizações: `./scripts/deploy.sh` (faz backup do banco antes e recusa
 rodar com a enquete aberta e já recebendo respostas, a não ser com `--force`).
 
+## No mesmo servidor do ROC
+
+O ROC já ocupa as portas 80/443 com o Caddy dele, e a enquete não mexe nele.
+Há dois jeitos de rodar:
+
+**Modo só IP (convive com o ROC no ar).** Sem Caddy próprio, o nginx atende
+direto numa porta. Não tem HTTPS: o navegador marca "Não seguro", mas funciona.
+No `.env` da enquete:
+
+```ini
+COMPOSE_FILE=docker-compose.yml:docker-compose.ip.yml
+ENQUETE_PORT=8080
+APP_URL=http://IP-DO-SERVIDOR:8080
+```
+
+Depois rode `docker compose up -d --build` e abra `http://IP-DO-SERVIDOR:8080/display`.
+A porta precisa estar liberada no firewall (`ufw allow 8080/tcp`, se o ufw
+estiver ativo).
+
+**Com HTTPS, com o ROC parado.** Pare o ROC (`docker compose stop` na pasta
+dele; os dados ficam), tire as duas linhas `COMPOSE_FILE`/`ENQUETE_PORT` do
+`.env` da enquete, defina `APP_DOMAIN`/`APP_URL` com o endereço sslip.io e
+rode `docker compose up -d`. Para devolver as portas ao ROC:
+`docker compose stop caddy` na enquete e `docker compose start` no ROC.
+
 ## API
 
 | Método | Rota | Uso |

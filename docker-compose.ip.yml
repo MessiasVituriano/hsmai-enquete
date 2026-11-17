@@ -1,0 +1,22 @@
+# Modo "só IP": a enquete roda ao lado de outro sistema que já ocupa as
+# portas 80/443 deste servidor (o ROC), sem encostar nele.
+#
+#   Ative no .env:   COMPOSE_FILE=docker-compose.yml:docker-compose.ip.yml
+#                    ENQUETE_PORT=8080
+#   Acesse:          http://IP-DO-SERVIDOR:8080/display
+#
+# Sem o Caddy não há HTTPS: o navegador marca "Não seguro" na barra de
+# endereço. Funciona, mas para o evento prefira o modo normal (com o Caddy e um
+# endereço com certificado) se as portas 80/443 estiverem livres.
+#
+# Com o nginx publicado direto, o X-Forwarded-For que o trustProxies('*')
+# aceita pode ser forjado. A aplicação não usa o IP de quem acessa para nada,
+# então isso não abre brecha aqui.
+services:
+    caddy:
+        # fora do `up` neste modo: só sobe se o perfil for pedido explicitamente
+        profiles: [tls]
+
+    nginx:
+        ports:
+            - '${ENQUETE_PORT:-8080}:80'

@@ -53,8 +53,10 @@ docker compose version >/dev/null 2>&1 \
     || abort "APP_DEBUG não é false — a página de erro vazaria senha e master token"
 
 DOMAIN="$(env_get APP_DOMAIN)"
-[ -n "$DOMAIN" ] || abort "APP_DOMAIN vazio no .env"
-if [ "$DOMAIN" = ":80" ]; then
+[ -n "$DOMAIN" ] || DOMAIN=":80"
+if env_get COMPOSE_FILE | grep -q 'docker-compose.ip.yml'; then
+    step aviso "modo só IP (docker-compose.ip.yml) — subindo SEM HTTPS"
+elif [ "$DOMAIN" = ":80" ]; then
     step aviso "APP_DOMAIN=:80 — subindo SEM HTTPS"
 fi
 
@@ -126,6 +128,11 @@ docker compose up -d --remove-orphans
 BASE="http://localhost"
 if [ "$DOMAIN" != ":80" ]; then
     BASE="https://$DOMAIN"
+fi
+# modo só IP (docker-compose.ip.yml): sem Caddy, o nginx atende direto na porta
+if env_get COMPOSE_FILE | grep -q 'docker-compose.ip.yml'; then
+    PORT="$(env_get ENQUETE_PORT || true)"
+    BASE="http://localhost:${PORT:-8080}"
 fi
 
 step checando "aguardando $BASE/up"
