@@ -1,0 +1,72 @@
+services:
+    app:
+        build:
+            context: .
+            target: php
+        restart: unless-stopped
+        env_file: .env
+        environment:
+            DB_HOST: pgsql
+            DB_PORT: 5432
+        depends_on:
+            pgsql:
+                condition: service_healthy
+        volumes:
+            - storage:/var/www/html/storage
+
+    # Sem `ports`: o nginx só é alcançável pela rede interna do compose, através
+    # do Caddy. É isso que torna o trustProxies(at: '*') do bootstrap/app.php
+    # seguro — não existe caminho até o php-fpm que pule o proxy.
+    nginx:
+        build:
+            context: .
+            target: web
+        restart: unless-stopped
+        depends_on:
+            - app
+
+    caddy:
+        image: caddy:2-alpine
+        restart: unless-stopped
+        ports:
+            - '80:80'
+            - '443:443'
+        environment:
+            # `:80` = HTTP puro. Ponha o domínio no .env e o Caddy emite e
+            # renova o certificado sozinho. Ver docker/caddy/Caddyfile.
+            APP_DOMAIN: ${APP_DOMAIN:-:80}
+        volumes:
+            - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+            # Os certificados vivem aqui. Sem este volume, cada `up` refaz a
+            # emissão e o Let's Encrypt tem limite semanal por domínio.
+            - caddy_data:/data
+            - caddy_config:/config
+        depends_on:
+            - nginx
+
+    pgsql:
+        image: postgres:18-alpine
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: ${DB_DATABASE:-enquete}
+            POSTGRES_USER: ${DB_USERNAME:-enquete}
+            POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
+        volumes:
+            # A imagem do Postgres 18 declara VOLUME /var/lib/postgresql e põe o
+            # PGDATA em /var/lib/postgresql/18/docker — não mais no
+            # /var/lib/postgresql/data das versões antigas. Montar no caminho
+            # antigo aninha um volume dentro do volume da imagem e deixa o banco
+            # gravando num volume anônimo, que vira lixo órfão no próximo
+            # `up --force-recreate`: o evento inteiro sumiria.
+            - pgdata:/var/lib/postgresql
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-enquete}']
+            interval: 5s
+            timeout: 3s
+            retries: 10
+
+volumes:
+    pgdata:
+    storage:
+    caddy_data:
+    caddy_config:
