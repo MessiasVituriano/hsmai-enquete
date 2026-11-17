@@ -17,6 +17,11 @@
             <div style="text-align:center">
                 <p style="margin:0;font-size:24px;font-weight:700;color:#4b2866">Enquete ao vivo</p>
                 <p style="margin:8px 0 0;font-size:14px;color:#6b6178">Carregando…</p>
+                <p style="margin:40px 0 0;display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:#8a8095">
+                    desenvolvido por:
+                    <img src="/brand/logo-io.svg" alt="" width="13" height="17">
+                    <strong style="font-size:14px;font-weight:900;color:#0b4c93">Sistema IO</strong>
+                </p>
             </div>
         </div>
     </div>

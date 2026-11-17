@@ -74,6 +74,11 @@ public/brand/logo-hsmai.png         # rodapé (fundo roxo: use a versão branca)
 Outros nomes ou formatos: `LOGO_HEADER` / `LOGO_FOOTER` no `.env`. Sem o
 arquivo, o espaço simplesmente some.
 
+O crédito **"desenvolvido por: Sistema IO"** com o símbolo da marca está no
+rodapé de todas as telas (componente `DevelopedBy`): no telão, à direita da
+faixa roxa, num selo branco para o azul do símbolo não sumir no roxo; no
+celular, no fim da lista de perguntas; no painel, no rodapé e no login.
+
 ## Rodando localmente
 
 ```bash

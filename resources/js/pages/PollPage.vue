@@ -4,6 +4,7 @@ import { api } from '../lib/api'
 import { usePolling } from '../composables/usePolling'
 import RichText from '../components/RichText.vue'
 import ResultBars from '../components/ResultBars.vue'
+import DevelopedBy from '../components/DevelopedBy.vue'
 
 /**
  * O celular: as quatro perguntas numa tela só, sem cadastro. Cada toque grava
@@ -119,6 +120,10 @@ async function choose(question, option) {
                     <ResultBars :options="q.options" :results="q.results" :mine="mine[q.id] ?? null" size="sm" />
                 </div>
             </section>
+
+            <div class="flex justify-center pb-2 pt-5">
+                <DevelopedBy />
+            </div>
         </main>
 
         <footer

@@ -7,6 +7,7 @@ import RichText from '../components/RichText.vue'
 import ResultBars from '../components/ResultBars.vue'
 import JoinQrCode from '../components/JoinQrCode.vue'
 import BrandImage from '../components/BrandImage.vue'
+import DevelopedBy from '../components/DevelopedBy.vue'
 
 /**
  * O telão. Três telas, trocadas pelo painel:
@@ -154,6 +155,7 @@ function toggleFullscreen() {
                 <div class="flex h-full items-center gap-[64px] px-[100px]">
                     <BrandImage :src="data.logos?.footer" alt="" class="max-h-[72px] max-w-[300px] object-contain" />
                     <p class="text-[36px] font-bold text-white">{{ data.event_name }}</p>
+                    <DevelopedBy tone="dark" size="stage" class="ml-auto" />
                 </div>
             </footer>
         </div>

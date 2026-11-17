@@ -5,6 +5,7 @@ import { api, masterToken } from '../lib/api'
 import { usePolling } from '../composables/usePolling'
 import RichText from '../components/RichText.vue'
 import ResultBars from '../components/ResultBars.vue'
+import DevelopedBy from '../components/DevelopedBy.vue'
 
 /**
  * O painel de quem conduz: resultados ao vivo de todas as perguntas (nunca
@@ -87,7 +88,7 @@ const screenLabel = computed(() => {
 <template>
     <div class="min-h-dvh bg-brand-100">
         <!-- portão do token -->
-        <div v-if="!authed" class="grid min-h-dvh place-items-center px-4">
+        <div v-if="!authed" class="flex min-h-dvh flex-col items-center justify-center gap-6 px-4">
             <form class="w-full max-w-sm rounded-xl border border-brand-200 bg-white p-6 shadow-sm" @submit.prevent="login(tokenInput)">
                 <h1 class="text-xl font-bold text-brand-800">Painel da enquete</h1>
                 <p class="mt-1 text-sm text-ink/70">Informe o token do facilitador (<code>MASTER_TOKEN</code>).</p>
@@ -101,6 +102,7 @@ const screenLabel = computed(() => {
                 <p v-if="authError" class="mt-2 text-sm font-semibold text-red-700">{{ authError }}</p>
                 <button class="mt-4 w-full rounded-lg bg-brand-800 py-2.5 font-semibold text-white hover:bg-brand-900">Entrar</button>
             </form>
+            <DevelopedBy />
         </div>
 
         <template v-else-if="data">
@@ -233,6 +235,10 @@ const screenLabel = computed(() => {
                         Zerar tudo
                     </button>
                 </section>
+
+                <footer class="flex justify-center py-4">
+                    <DevelopedBy />
+                </footer>
             </main>
         </template>
     </div>
