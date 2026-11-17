@@ -16,7 +16,6 @@ Route::get('/display', DisplayController::class);
 Route::prefix('admin')->middleware('master')->group(function () {
     Route::get('/overview', [AdminController::class, 'overview']);
     Route::post('/screen', [AdminController::class, 'screen']);
-    Route::post('/questions/{question}/hide', [AdminController::class, 'hide']);
     Route::post('/accepting', [AdminController::class, 'accepting']);
     Route::post('/reset', [AdminController::class, 'reset']);
 });

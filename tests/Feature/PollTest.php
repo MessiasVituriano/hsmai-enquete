@@ -103,50 +103,76 @@ class PollTest extends TestCase
         $this->assertFalse($this->getJson('/api/poll')->json('accepting'));
     }
 
-    public function test_resultado_so_sai_depois_de_ir_ao_telao(): void
+    protected function screen(string $screen, ?int $position = null)
+    {
+        return $this->postJson('/api/admin/screen', [
+            'screen' => $screen,
+            'question_id' => $position ? $this->question($position)->id : null,
+        ], $this->master)->assertOk();
+    }
+
+    public function test_convite_nao_leva_nenhuma_pergunta_ao_telao_nem_ao_celular(): void
+    {
+        $display = $this->getJson('/api/display');
+        $this->assertSame('invite', $display->json('screen'));
+        $this->assertSame([], $display->json('questions'));
+        $this->assertSame(4, $display->json('total_questions'));
+
+        $poll = $this->getJson('/api/poll', $this->phone());
+        $this->assertSame('invite', $poll->json('screen'));
+        $this->assertSame([], $poll->json('questions'));
+    }
+
+    public function test_selecionar_a_pergunta_leva_so_ela_ao_telao_e_ao_celular_sem_resultado(): void
+    {
+        $this->vote($this->phone(), 2, 0);
+        $this->vote($this->phone(), 2, 1);
+
+        $this->screen('question', 2);
+
+        $display = $this->getJson('/api/display');
+        $this->assertSame([2], array_column($display->json('questions'), 'number'));
+        $this->assertSame(2, $display->json('questions.0.answers'));
+        $this->assertNull($display->json('questions.0.results'));
+
+        $poll = $this->getJson('/api/poll', $this->phone());
+        $this->assertSame('question', $poll->json('screen'));
+        $this->assertSame([2], array_column($poll->json('questions'), 'number'));
+        $this->assertNull($poll->json('questions.0.results'));
+
+        // voto numa pergunta que acabou de sair da tela não se perde
+        $this->vote($this->phone(), 1, 0)->assertOk();
+    }
+
+    public function test_resultado_so_sai_na_fase_de_resultado(): void
     {
         $this->vote($this->phone(), 1, 0);
         $this->vote($this->phone(), 1, 0);
         $this->vote($this->phone(), 1, 1);
 
-        $this->assertNull($this->getJson('/api/display')->json('questions.0.results'));
-        $this->assertNull($this->getJson('/api/poll')->json('questions.0.results'));
         // o painel vê tudo ao vivo
         $this->assertSame(3, $this->getJson('/api/admin/overview', $this->master)->json('questions.0.results.total'));
 
-        $this->postJson('/api/admin/screen', ['screen' => 'question', 'question_id' => $this->question(1)->id], $this->master)
-            ->assertOk()
-            ->assertJsonPath('screen', 'question');
+        $this->screen('results', 1);
 
-        $display = $this->getJson('/api/display')->assertOk();
-        $display->assertJsonPath('respondents', 3);
+        $display = $this->getJson('/api/display');
+        $display->assertJsonPath('screen', 'results')->assertJsonPath('respondents', 3);
         $this->assertSame([67, 33], array_column($display->json('questions.0.results.options'), 'percent'));
-        $this->assertNull($display->json('questions.1.results'));
         $this->assertNotNull($this->getJson('/api/poll')->json('questions.0.results'));
+        $this->assertNotNull($this->question(1)->revealed_at);
 
-        // recolher tira dos celulares e devolve o telão ao convite
-        $this->postJson('/api/admin/questions/'.$this->question(1)->id.'/hide', [], $this->master)->assertOk();
+        // voltar a perguntar a mesma pergunta esconde o resultado de novo
+        $this->screen('question', 1);
+        $this->assertNull($this->getJson('/api/display')->json('questions.0.results'));
         $this->assertNull($this->getJson('/api/poll')->json('questions.0.results'));
-        $this->assertSame('invite', PollState::current()->screen);
     }
 
-    public function test_celular_mostra_so_as_perguntas_vigentes_no_telao(): void
+    public function test_estado_antigo_desconhecido_vale_como_convite(): void
     {
-        $numbers = fn () => array_column($this->getJson('/api/poll', $this->phone())->json('questions'), 'number');
+        PollState::current()->update(['screen' => 'all', 'screen_question_id' => null]);
 
-        $this->assertSame([1, 2, 3, 4], $numbers());
-
-        $this->postJson('/api/admin/screen', ['screen' => 'question', 'question_id' => $this->question(2)->id], $this->master);
-        $this->assertSame([2], $numbers());
-
-        // voto numa pergunta que acabou de sair do telão não se perde
-        $this->vote($this->phone(), 1, 0)->assertOk();
-
-        $this->postJson('/api/admin/screen', ['screen' => 'all'], $this->master);
-        $this->assertSame([1, 2, 3, 4], $numbers());
-
-        $this->postJson('/api/admin/screen', ['screen' => 'invite'], $this->master);
-        $this->assertSame([1, 2, 3, 4], $numbers());
+        $this->getJson('/api/display')->assertJsonPath('screen', 'invite')->assertJsonPath('questions', []);
+        $this->getJson('/api/poll')->assertJsonPath('screen', 'invite');
     }
 
     public function test_percentuais_somam_cem(): void
@@ -163,7 +189,7 @@ class PollTest extends TestCase
     public function test_reset_zera_respostas_e_liberacoes(): void
     {
         $this->vote($this->phone(), 2, 0);
-        $this->postJson('/api/admin/screen', ['screen' => 'all'], $this->master)->assertOk();
+        $this->screen('results', 2);
         $this->postJson('/api/admin/accepting', ['accepting' => false], $this->master);
 
         $this->postJson('/api/admin/reset', [], $this->master)->assertOk();
@@ -180,5 +206,6 @@ class PollTest extends TestCase
         $this->getJson('/api/admin/overview')->assertUnauthorized();
         $this->postJson('/api/admin/reset')->assertUnauthorized();
         $this->postJson('/api/admin/screen', ['screen' => 'question'], $this->master)->assertStatus(422);
+        $this->postJson('/api/admin/screen', ['screen' => 'all'], $this->master)->assertStatus(422);
     }
 }

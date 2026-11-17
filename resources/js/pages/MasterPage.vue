@@ -72,16 +72,38 @@ async function act(path, body = {}, confirmText = null) {
 
 const questions = computed(() => data.value?.questions ?? [])
 const isOn = (screen, id = null) =>
-    data.value?.screen === screen && (screen !== 'question' || data.value?.screen_question_id === id)
+    data.value?.screen === screen && (screen === 'invite' || data.value?.screen_question_id === id)
 
-const screenLabel = computed(() => {
+/*
+ * O roteiro em ordem: convite → as perguntas, uma a uma → os resultados, um a
+ * um, no final. "Próxima" e "Anterior" andam por esta lista; os botões de
+ * cada pergunta saltam para qualquer ponto dela.
+ */
+const steps = computed(() => [
+    { screen: 'invite', label: 'Convite + QR code' },
+    ...questions.value.map((q) => ({ screen: 'question', question_id: q.id, label: `Pergunta ${q.number} (respondendo)` })),
+    ...questions.value.map((q) => ({ screen: 'results', question_id: q.id, label: `Resultado da pergunta ${q.number}` })),
+])
+const stepIndex = computed(() => {
     const d = data.value
-    if (!d) return ''
-    if (d.screen === 'question') {
-        const q = questions.value.find((x) => x.id === d.screen_question_id)
-        return q ? `Resultado da pergunta ${q.number}` : 'Convite + QR code'
-    }
-    return d.screen === 'all' ? 'As quatro perguntas' : 'Convite + QR code'
+    const i = steps.value.findIndex((s) => s.screen === d?.screen && (s.screen === 'invite' || s.question_id === d?.screen_question_id))
+    return Math.max(i, 0)
+})
+const currentStep = computed(() => steps.value[stepIndex.value])
+const prevStep = computed(() => steps.value[stepIndex.value - 1] ?? null)
+const nextStep = computed(() => steps.value[stepIndex.value + 1] ?? null)
+
+function goTo(step) {
+    if (!step) return
+    act('/admin/screen', { screen: step.screen, question_id: step.question_id ?? null })
+}
+
+const phoneLabel = computed(() => {
+    const d = data.value
+    const q = questions.value.find((x) => x.id === d?.screen_question_id)
+    if (d?.screen === 'question' && q) return `pergunta ${q.number} para responder`
+    if (d?.screen === 'results' && q) return `resultado da pergunta ${q.number}`
+    return 'aguardando a primeira pergunta'
 })
 </script>
 
@@ -147,45 +169,53 @@ const screenLabel = computed(() => {
                     </div>
 
                     <div class="rounded-xl border border-brand-200 bg-white p-5">
-                        <p class="text-sm font-semibold text-ink/60">O telão está mostrando</p>
-                        <p class="mt-1 text-2xl font-bold text-brand-800">{{ screenLabel }}</p>
-                        <div class="mt-4 flex flex-wrap gap-2">
+                        <p class="text-sm font-semibold text-ink/60">No telão agora · passo {{ stepIndex + 1 }} de {{ steps.length }}</p>
+                        <p class="mt-1 text-2xl font-bold text-brand-800">{{ currentStep.label }}</p>
+                        <p class="mt-1 text-sm text-ink/70">
+                            📱 Nos celulares: <strong class="font-semibold text-brand-800">{{ phoneLabel }}</strong>
+                        </p>
+
+                        <div class="mt-4 flex flex-wrap items-stretch gap-2">
                             <button
-                                :disabled="busy"
-                                class="rounded-lg px-4 py-2 font-semibold transition disabled:opacity-50"
-                                :class="isOn('invite') ? 'bg-brand-800 text-white' : 'border border-brand-300 text-brand-800 hover:bg-brand-50'"
-                                @click="act('/admin/screen', { screen: 'invite' })"
+                                :disabled="busy || !prevStep"
+                                class="rounded-lg border border-brand-300 px-4 py-2.5 font-semibold text-brand-800 hover:bg-brand-50 disabled:opacity-40"
+                                @click="goTo(prevStep)"
                             >
-                                Convite + QR
+                                ‹ Anterior
                             </button>
                             <button
-                                v-for="q in questions"
-                                :key="q.id"
-                                :disabled="busy"
-                                class="rounded-lg px-4 py-2 font-semibold transition disabled:opacity-50"
-                                :class="isOn('question', q.id) ? 'bg-brand-800 text-white' : 'border border-brand-300 text-brand-800 hover:bg-brand-50'"
-                                @click="act('/admin/screen', { screen: 'question', question_id: q.id })"
+                                :disabled="busy || !nextStep"
+                                class="flex-1 rounded-lg bg-brand-800 px-4 py-2.5 text-left font-semibold text-white hover:bg-brand-900 disabled:opacity-40"
+                                @click="goTo(nextStep)"
                             >
-                                Pergunta {{ q.number }}
-                            </button>
-                            <button
-                                :disabled="busy"
-                                class="rounded-lg px-4 py-2 font-semibold transition disabled:opacity-50"
-                                :class="isOn('all') ? 'bg-brand-800 text-white' : 'border border-brand-300 text-brand-800 hover:bg-brand-50'"
-                                @click="act('/admin/screen', { screen: 'all' })"
-                            >
-                                Todas
+                                <span class="block text-xs font-medium uppercase tracking-wider text-white/70">Próxima ›</span>
+                                {{ nextStep ? nextStep.label : 'Fim do roteiro' }}
                             </button>
                         </div>
+                        <button
+                            v-if="!isOn('invite')"
+                            :disabled="busy"
+                            class="mt-2 text-sm font-semibold text-brand-700 hover:underline disabled:opacity-50"
+                            @click="act('/admin/screen', { screen: 'invite' })"
+                        >
+                            Voltar ao convite com o QR code
+                        </button>
                         <p class="mt-3 text-xs text-ink/60">
-                            Levar um resultado ao telão também o libera nos celulares. “Recolher” desfaz as duas coisas.
+                            Selecionar uma pergunta leva ela ao telão e aos celulares, sem resultado. O resultado só aparece
+                            quando você manda, e a ideia é mostrar todos no final.
                         </p>
                     </div>
                 </section>
 
-                <!-- resultados ao vivo -->
+                <!-- resultados ao vivo: só aqui, nunca projetado -->
+                <p class="-mb-2 text-sm font-semibold text-ink/60">Resultados ao vivo (só você vê)</p>
                 <section class="grid gap-4 md:grid-cols-2">
-                    <article v-for="q in questions" :key="q.id" class="flex flex-col rounded-xl border border-brand-200 bg-white p-5">
+                    <article
+                        v-for="q in questions"
+                        :key="q.id"
+                        class="flex flex-col rounded-xl border-2 bg-white p-5 transition"
+                        :class="data.screen_question_id === q.id ? 'border-brand-800' : 'border-brand-200'"
+                    >
                         <div class="flex gap-3">
                             <span class="grid size-9 shrink-0 place-items-center rounded-full bg-brand-800 font-bold text-white">{{ q.number }}</span>
                             <RichText tag="p" :text="q.prompt" class="pt-1 text-sm leading-snug" strong-class="font-bold text-brand-800" />
@@ -198,23 +228,24 @@ const screenLabel = computed(() => {
                         <div class="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
                             <span class="text-sm text-ink/60">
                                 {{ q.results.total }} {{ q.results.total === 1 ? 'resposta' : 'respostas' }}
-                                <span v-if="q.revealed" class="ml-2 rounded-full bg-accent-500/20 px-2 py-0.5 text-xs font-semibold text-accent-600">liberada</span>
+                                <span v-if="q.revealed" class="ml-2 rounded-full bg-accent-500/20 px-2 py-0.5 text-xs font-semibold text-accent-600">resultado já mostrado</span>
                             </span>
                             <div class="flex gap-2">
                                 <button
-                                    v-if="q.revealed"
-                                    :disabled="busy"
-                                    class="rounded-lg border border-brand-300 px-3 py-1.5 text-sm font-semibold text-brand-800 hover:bg-brand-50 disabled:opacity-50"
-                                    @click="act(`/admin/questions/${q.id}/hide`)"
-                                >
-                                    Recolher
-                                </button>
-                                <button
                                     :disabled="busy || isOn('question', q.id)"
-                                    class="rounded-lg bg-brand-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-900 disabled:opacity-50"
+                                    class="rounded-lg px-3 py-1.5 text-sm font-semibold disabled:cursor-default"
+                                    :class="isOn('question', q.id) ? 'bg-accent-500 text-white' : 'bg-brand-800 text-white hover:bg-brand-900 disabled:opacity-50'"
                                     @click="act('/admin/screen', { screen: 'question', question_id: q.id })"
                                 >
-                                    {{ isOn('question', q.id) ? 'No telão' : 'Mostrar no telão' }}
+                                    {{ isOn('question', q.id) ? '● Respondendo agora' : 'Perguntar agora' }}
+                                </button>
+                                <button
+                                    :disabled="busy || isOn('results', q.id)"
+                                    class="rounded-lg px-3 py-1.5 text-sm font-semibold disabled:cursor-default"
+                                    :class="isOn('results', q.id) ? 'bg-accent-500 text-white' : 'border border-brand-300 text-brand-800 hover:bg-brand-50 disabled:opacity-50'"
+                                    @click="act('/admin/screen', { screen: 'results', question_id: q.id })"
+                                >
+                                    {{ isOn('results', q.id) ? '● Resultado na tela' : 'Mostrar resultado' }}
                                 </button>
                             </div>
                         </div>

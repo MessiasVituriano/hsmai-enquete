@@ -28,44 +28,25 @@ class AdminController extends Controller
     }
 
     /**
-     * Troca o que o telão mostra. Levar o resultado de uma pergunta ao telão
-     * também o libera nos celulares — a sala já viu, não há o que esconder.
+     * Troca o que o telão e os celulares mostram: o convite, a pergunta N para
+     * responder, ou o resultado da pergunta N. Mostrar o resultado marca a
+     * pergunta como revelada (o selo "liberada" do painel).
      */
     public function screen(Request $request): JsonResponse
     {
         $data = $request->validate([
             'screen' => ['required', Rule::in(PollState::SCREENS)],
-            'question_id' => ['required_if:screen,question', 'nullable', 'integer', 'exists:questions,id'],
+            'question_id' => ['required_unless:screen,invite', 'nullable', 'integer', 'exists:questions,id'],
         ]);
 
         DB::transaction(function () use ($data) {
             $state = PollState::current();
-            $questionId = $data['screen'] === 'question' ? (int) $data['question_id'] : null;
+            $questionId = $data['screen'] === 'invite' ? null : (int) $data['question_id'];
 
             $state->update(['screen' => $data['screen'], 'screen_question_id' => $questionId]);
 
-            $reveal = match ($data['screen']) {
-                'question' => Question::whereKey($questionId),
-                'all' => Question::query(),
-                default => null,
-            };
-
-            $reveal?->whereNull('revealed_at')->update(['revealed_at' => now()]);
-        });
-
-        return $this->overview();
-    }
-
-    /** Recolhe o resultado de uma pergunta (dos celulares e do telão). */
-    public function hide(Question $question): JsonResponse
-    {
-        DB::transaction(function () use ($question) {
-            $question->update(['revealed_at' => null]);
-
-            $state = PollState::current();
-
-            if ($state->screen === 'all' || $state->screen_question_id === $question->id) {
-                $state->update(['screen' => 'invite', 'screen_question_id' => null]);
+            if ($data['screen'] === 'results') {
+                Question::whereKey($questionId)->whereNull('revealed_at')->update(['revealed_at' => now()]);
             }
         });
 

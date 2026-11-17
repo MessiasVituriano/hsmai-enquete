@@ -17,17 +17,18 @@ class ParticipantController extends Controller
     public function __construct(private PollService $poll) {}
 
     /**
-     * Poll do celular: as perguntas vigentes, o que este aparelho já marcou e
-     * os resultados liberados.
+     * Poll do celular: só a pergunta que o facilitador selecionou, o que este
+     * aparelho já marcou e, se ela estiver na fase de resultado, o resultado.
      *
-     * Vigente é o que está no telão: no convite e em "todas", as quatro; com o
-     * resultado de uma pergunta no telão, só ela. O celular acompanha a
-     * conversa do palco em vez de mostrar a lista inteira o tempo todo.
+     * O celular espelha o telão: no convite não há pergunta (a pessoa
+     * aguarda); com a pergunta N sendo respondida ou com o resultado dela na
+     * tela, chega só ela. A lista inteira nunca vai ao celular.
      */
     public function show(Request $request): JsonResponse
     {
         $state = PollState::current();
-        $questions = $this->poll->current($state, $this->poll->questions());
+        $all = $this->poll->questions();
+        $questions = $all->where('id', $state->focusId())->values();
         $respondent = $this->respondent($request);
 
         $mine = $respondent
@@ -38,10 +39,12 @@ class ParticipantController extends Controller
             'event_name' => config('enquete.event_name'),
             'title' => config('enquete.title'),
             'accepting' => $state->accepting,
+            'screen' => $questions->isEmpty() ? 'invite' : $state->screen,
+            'total_questions' => $all->count(),
             'questions' => $this->poll->serializeQuestions(
                 $questions,
                 $this->poll->counts(),
-                fn (Question $q) => $q->revealed_at !== null,
+                fn (Question $q) => $q->revealed_at !== null && $state->screen === 'results',
             ),
             'mine' => (object) $mine->all(),
         ]);

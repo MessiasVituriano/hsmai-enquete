@@ -13,8 +13,8 @@ return new class extends Migration
         Schema::create('poll_states', function (Blueprint $table) {
             $table->id();
             $table->boolean('accepting')->default(true);
-            // invite = slide com as perguntas e o QR; question = resultado de
-            // uma pergunta; all = as quatro lado a lado
+            // invite = só o QR; question = a pergunta N sendo respondida;
+            // results = o resultado da pergunta N (ver PollState::SCREENS)
             $table->string('screen', 16)->default('invite');
             $table->unsignedBigInteger('screen_question_id')->nullable();
             $table->timestamps();

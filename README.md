@@ -36,26 +36,31 @@ some o voto de uma alternativa que você tirar do config.
 
 ## O roteiro no painel
 
-| Momento | Botão no `/master` | Telão | Celulares |
-|---|---|---|---|
-| Abertura | **Convite + QR** | o slide com as 4 perguntas, o QR e quantas pessoas já responderam | as 4 perguntas |
-| Ao longo do painel | **Pergunta N** (ou *Mostrar no telão* no card) | o resultado daquela pergunta, ao vivo, com um QR menor para quem chegou atrasado | só aquela pergunta, com o resultado abaixo |
-| Fecho | **Todas** | as 4 perguntas lado a lado | as 4, com os resultados |
-| Quando quiser | **Encerrar respostas** | o convite passa a dizer "Enquete encerrada" | os botões travam |
+Uma coisa por vez, no telão e no celular ao mesmo tempo. O telão nunca mostra
+a lista inteira de perguntas. **Próxima ›** percorre o roteiro em ordem, e os
+botões de cada pergunta pulam para qualquer ponto dele.
 
-O painel mostra os resultados de **todas** as perguntas ao vivo, desde o
-primeiro voto — ele nunca vai ao projetor. Telão e celulares só recebem o
-resultado de uma pergunta depois que ela foi ao telão; **Recolher** desfaz
-isso. **Zerar tudo** apaga as respostas e volta ao convite (para depois do
-ensaio).
+| Passo | Telão | Celulares |
+|---|---|---|
+| **Convite + QR code** | só o QR code, a chamada e quantas pessoas já responderam | "Você está dentro!", aguardando |
+| **Pergunta N** (*Perguntar agora*) | a pergunta N com as alternativas e o número de respostas subindo, sem resultado | a pergunta N para responder |
+| **Resultado da pergunta N** (*Mostrar resultado*), no final | as barras com o percentual de cada alternativa | o resultado, com a resposta da pessoa marcada |
+
+A ordem do **Próxima ›** é convite → pergunta 1…4 → resultado 1…4. O painel
+mostra os resultados de todas as perguntas ao vivo desde o primeiro voto (é a
+única tela que vê isso, e ela não vai ao projetor). Voltar a **Perguntar
+agora** uma pergunta cujo resultado já apareceu esconde o resultado de novo.
+
+**Encerrar respostas** trava os botões nos celulares e tira o QR do telão.
+**Zerar tudo** apaga as respostas e volta ao convite (para depois do ensaio).
 
 ## Regras
 
-- **O celular segue o telão.** Ele mostra só as perguntas vigentes, que são as
-  que estão no telão: as 4 no convite e em "Todas", só a pergunta N quando o
-  resultado dela está projetado. A troca chega aos celulares em até 2s. O
-  servidor aceita resposta de qualquer pergunta, não só da vigente: se o
-  telão troca no segundo em que alguém tocou, o voto não se perde.
+- **O celular espelha o telão.** O servidor só manda ao celular (e ao telão)
+  a pergunta selecionada no painel, e o resultado dela só na fase de
+  resultado. A troca chega aos celulares em até 2s. Uma resposta é aceita para
+  qualquer pergunta, não só para a da tela: se o painel troca no segundo em
+  que alguém tocou, o voto não se perde.
 
 - **Anônimo, um voto por aparelho.** O celular gera um UUID e guarda no
   `localStorage`; o servidor tem índice único `(respondent, question_id)`.
@@ -134,12 +139,11 @@ rodar com a enquete aberta e já recebendo respostas, a não ser com `--force`).
 
 | Método | Rota | Uso |
 |---|---|---|
-| `GET` | `/api/poll` | poll do celular (2s): perguntas vigentes, o que este aparelho marcou, resultados liberados |
+| `GET` | `/api/poll` | poll do celular (2s): a pergunta selecionada, o que este aparelho marcou, o resultado na fase de resultado |
 | `POST` | `/api/answer` | `{question_id, option_id}` — marca ou troca |
 | `GET` | `/api/display` | poll do telão (1s) |
 | `GET` | `/api/admin/overview` | poll do painel (1s), com todos os resultados |
-| `POST` | `/api/admin/screen` | `{screen: invite\|question\|all, question_id?}` |
-| `POST` | `/api/admin/questions/{id}/hide` | recolhe o resultado de uma pergunta |
+| `POST` | `/api/admin/screen` | `{screen: invite\|question\|results, question_id?}` |
 | `POST` | `/api/admin/accepting` | `{accepting: bool}` |
 | `POST` | `/api/admin/reset` | apaga respostas e liberações |
 

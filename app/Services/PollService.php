@@ -19,25 +19,6 @@ class PollService
         return Question::with('options')->orderBy('position')->get();
     }
 
-    /**
-     * As perguntas vigentes: as que o telão está mostrando agora.
-     *
-     * @param  Collection<int, Question>  $questions
-     * @return Collection<int, Question>
-     */
-    public function current(PollState $state, Collection $questions): Collection
-    {
-        if ($state->screen !== 'question') {
-            return $questions;
-        }
-
-        $only = $questions->where('id', $state->screen_question_id)->values();
-
-        // pergunta apagada do config com o telão ainda nela: melhor mostrar
-        // todas do que um celular vazio
-        return $only->isEmpty() ? $questions : $only;
-    }
-
     /** @return array<int, array<int, int>> question_id => [option_id => votos] */
     public function counts(): array
     {
@@ -79,6 +60,9 @@ class PollService
                     'id' => $o->id,
                     'label' => $o->label,
                 ])->values()->all(),
+                // quantas respostas chegaram não entrega o resultado: o telão
+                // mostra o número subindo enquanto a sala responde
+                'answers' => array_sum($counts[$question->id] ?? []),
                 'results' => $show ? $this->results($question, $counts[$question->id] ?? []) : null,
             ];
         })->values()->all();
@@ -129,8 +113,9 @@ class PollService
             'call_to_action_note' => config('enquete.call_to_action_note'),
             'logos' => config('enquete.logos'),
             'accepting' => $state->accepting,
-            'screen' => $state->screen,
-            'screen_question_id' => $state->screen_question_id,
+            // tela desconhecida (ex.: o antigo "all") vale como convite
+            'screen' => in_array($state->screen, PollState::SCREENS, true) ? $state->screen : 'invite',
+            'screen_question_id' => $state->focusId(),
             'respondents' => $this->respondents(),
         ];
     }
