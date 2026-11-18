@@ -153,7 +153,7 @@ function toggleFullscreen() {
             </main>
 
             <!-- rodapé -->
-            <footer class="h-[118px] shrink-0 border-t-[6px] border-accent-500 bg-brand-800">
+            <footer class="h-[136px] shrink-0 border-t-[6px] border-accent-500 bg-brand-800">
                 <div class="flex h-full items-center gap-[64px] px-[100px]">
                     <BrandImage :src="data.logos?.footer" alt="" class="max-h-[72px] max-w-[300px] object-contain" />
                     <p class="text-[36px] font-bold text-white">{{ data.event_name }}</p>

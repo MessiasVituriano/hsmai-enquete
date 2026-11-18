@@ -19,7 +19,7 @@
                 <p style="margin:8px 0 0;font-size:14px;color:#5b6878">Carregando…</p>
                 <p style="margin:40px 0 0;display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:#7b8794">
                     desenvolvido por:
-                    <img src="/brand/logo-io.svg" alt="" width="13" height="17">
+                    <img src="/brand/logo-io.png" alt="" width="13" height="17">
                     <strong style="font-size:14px;font-weight:900;color:#0b4c93">Sistema IO</strong>
                 </p>
             </div>
